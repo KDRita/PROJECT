@@ -1,28 +1,30 @@
-version: '3.9'
 services:
   Elasticsearch:
-    image: elasticsearch:7.16.2
+    image: elasticsearch:8.6.2
     container_name: elasticsearch
     restart: always
     volumes:
-      - elastic_data:/usr/share/elasticsearch/data/
+      - ec2-user_elastic_data:/elasticsearch/data
     environment:
       ES_JAVA_OPTS: "-Xmx256m -Xms256m"
       discovery.type: single-node
-      discovery.seed_hosts: "['127.0.0.1']"
+      discovery.seed_hosts: "['172.31.0.2']"
     ports:
       - '9200:9200'
-      - '9300:9300'
     networks:
       - elk
-
-  Logstash:
-    image: docker.elastic.co/logstash/logstash:8.6.2
-    container_name: Logstashs
+      - bridge
+  logstash:
+    image: logstash:8.6.2
+    container_name: new_logstash
     restart: always
     volumes:
-      - ./logstash/config/logstash.yml:/usr/share/logstash/config/logstash.yml
-        -./logstash/pipeline:/usr/share/logstash/pipeline
+      - ec2-user_mon_volume_data:/usr/share/logstash/pipeline
+      - ec2-user_mon_volume_config:/usr/share/logstash/config:rw
+      - type: bind
+        source: /home/ec2-user/mon_volume/logstash.conf
+        target: /usr/share/logstash/config/logstash.conf
+
     depends_on:
       - Elasticsearch
     ports:
@@ -31,21 +33,25 @@ services:
       LS_JAVA_OPTS: "-Xmx256m -Xms256m"
     networks:
       - elk
-
+      - bridge
   Kibana:
-    image: kibana:7.16.2
+    image: kibana:8.6.2
     container_name: kibana
     restart: always
     ports:
       - '5601:5601'
     environment:
-      - ELASTICSEARCH_URL=http://elasticsearch:9200
+      - ELASTICSEARCH_URL=http://172.31.0.2:9200
     depends_on:
       - Elasticsearch
     networks:
       - elk
+      - bridge
 volumes:
-  elastic_data: {}
+  ec2-user_mon_volume_data: {}
+  ec2-user_mon_volume_config: {}
+  ec2-user_elastic_data: {}
 
 networks:
   elk:
+  bridge:
